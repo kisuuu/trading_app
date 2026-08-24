@@ -1,5 +1,5 @@
 name: trading_app
-description: "A new Flutter project."
+description: "Realtime mock trading terminal: watchlists, live prices, order ticket and holdings."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,6 +34,15 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+
+  # State management: compile-safe DI + fine-grained rebuilds.
+  flutter_riverpod: ^2.6.1
+
+  # `@immutable` / `@visibleForTesting` annotations used by the domain layer.
+  meta: ^1.15.0
+
+  # Local persistence for watchlists, wallet, holdings and order history.
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:
