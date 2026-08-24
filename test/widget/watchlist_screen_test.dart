@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trading_app/src/features/trading/presentation/order_ticket_screen.dart';
 import 'package:trading_app/src/features/watchlist/application/watchlist_controller.dart';
@@ -158,5 +159,84 @@ void main() {
     expect(find.byType(OrderTicketScreen), findsOneWidget);
     expect(find.text('HDFC Bank'), findsOneWidget);
     expect(find.text('₹1,673.10'), findsOneWidget);
+  });
+
+  group('name dialog', () {
+    testWidgets('cancelling leaves no disposed-controller fallout',
+        (tester) async {
+      final harness = AppHarness();
+      await harness.pump(tester, const WatchlistScreen());
+
+      await tester.tap(find.text('New'));
+      await tester.pumpAndSettle();
+      expect(find.text('New watchlist'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      // Pump through the dialog's exit transition, which is when a controller
+      // disposed on future-completion would blow up.
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('New watchlist'), findsNothing);
+      expect(
+        harness.container.read(watchlistControllerProvider).watchlists,
+        hasLength(1),
+      );
+    });
+
+    testWidgets('confirm is disabled until a non-blank name is typed',
+        (tester) async {
+      final harness = AppHarness();
+      await harness.pump(tester, const WatchlistScreen());
+
+      await tester.tap(find.text('New'));
+      await tester.pumpAndSettle();
+
+      FilledButton confirm() =>
+          tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Create'));
+      expect(confirm().onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.pump();
+      expect(confirm().onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'Banking');
+      await tester.pump();
+      expect(confirm().onPressed, isNotNull);
+
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Banking'), findsWidgets);
+      expect(find.text('Banking is empty'), findsOneWidget);
+    });
+
+    testWidgets('renaming pre-fills the current name and persists',
+        (tester) async {
+      final harness = AppHarness();
+      await harness.pump(tester, const WatchlistScreen());
+
+      await tester.tap(find.byTooltip('Watchlist options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller?.text,
+        'My Watchlist',
+      );
+
+      await tester.enterText(find.byType(TextField), 'Large caps');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Large caps'), findsWidgets);
+
+      // Cold start: the new name came back from storage.
+      await harness.pump(tester, const WatchlistScreen());
+      expect(find.text('Large caps'), findsWidgets);
+    });
   });
 }

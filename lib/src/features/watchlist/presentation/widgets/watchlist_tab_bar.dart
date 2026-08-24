@@ -55,33 +55,88 @@ Future<String?> promptWatchlistName(
   required String confirmLabel,
   String initialValue = '',
 }) {
-  final controller = TextEditingController(text: initialValue);
   return showDialog<String>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
+    builder: (_) => _NamePromptDialog(
+      title: title,
+      confirmLabel: confirmLabel,
+      initialValue: initialValue,
+    ),
+  );
+}
+
+/// The dialog owns its [TextEditingController].
+///
+/// Disposing the controller when `showDialog`'s future completes looks
+/// equivalent but is not: the future resolves the moment the route is popped,
+/// while the dialog keeps rebuilding through its exit transition. The field
+/// would then read a disposed controller. Tying the controller to this
+/// widget's own lifecycle disposes it only once the dialog is really gone.
+class _NamePromptDialog extends StatefulWidget {
+  const _NamePromptDialog({
+    required this.title,
+    required this.confirmLabel,
+    required this.initialValue,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String initialValue;
+
+  @override
+  State<_NamePromptDialog> createState() => _NamePromptDialogState();
+}
+
+class _NamePromptDialogState extends State<_NamePromptDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialValue)
+        ..selection = TextSelection.collapsed(
+          offset: widget.initialValue.length,
+        );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
         maxLength: 40,
         textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
         decoration: const InputDecoration(
           labelText: 'Name',
           hintText: 'e.g. Banking',
         ),
-        onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        onSubmitted: (_) => _submit(),
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
+          onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
-          onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-          child: Text(confirmLabel),
+        // Rebuilds as the field changes so an empty name cannot be confirmed.
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (context, value, _) => FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
+            onPressed: value.text.trim().isEmpty ? null : _submit,
+            child: Text(widget.confirmLabel),
+          ),
         ),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }
